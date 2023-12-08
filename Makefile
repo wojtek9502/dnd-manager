@@ -4,15 +4,6 @@ pytest = venv/bin/pytest
 
 cli_command = $(python) run_cli.py
 
-db-migrate:
-	$(cli_command) db migrate
-
-db-upgrade:
-	$(cli_command) db upgrade
-
-db-downgrade:
-	$(cli_command) db downgrade
-
 up:
 	docker-compose up -d
 
@@ -21,6 +12,12 @@ pull:
 
 down:
 	docker-compose down
+
+db-migrate:
+	alembic revision --autogenerate
+
+db-upgrade:
+	alembic upgrade head
 
 uninstall-unrequired-libraries:
 	$(pip) freeze | grep -v -f requirements.txt - | grep -v '^#' | xargs $(pip) uninstall -y || echo "OK, you dont have any unrequired libraries"
@@ -55,3 +52,4 @@ clean: clean-logs clean-test-reports
 run-pgadmin:
 	docker rm -f pgadmin
 	docker run --name pgadmin --net=host -e "PGADMIN_DEFAULT_EMAIL=admin@admin.com" -e "PGADMIN_DEFAULT_PASSWORD=admin" -d dpage/pgadmin4
+

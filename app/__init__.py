@@ -12,4 +12,8 @@ PROJECT_DIR = Path(__file__).parent
 load_dotenv()
 
 engine = create_engine(os.environ['DB_URI'])
-Database.metadata.create_all(engine, checkfirst=True)
+Base = Database
+
+# don't run
+# Database.metadata.create_all(engine, checkfirst=True)
+# here, it will create tables here, and cause empty migrations in alembic
