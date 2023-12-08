@@ -10,16 +10,15 @@
 python -m pip install virtualenv
 make install-venv
 make install
+
+make up
+make db-upgrade
 ```
 
 ### Run
 1) Start containers  
 ```shell
 make up
-```
-2) Run db upgrade from migrations
-```shell
-make db-upgrade
 ```
 
 ### Test
