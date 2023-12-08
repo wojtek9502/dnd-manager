@@ -22,6 +22,8 @@ pull:
 down:
 	docker-compose down
 
+uninstall-unrequired-libraries:
+	$(pip) freeze | grep -v -f requirements.txt - | grep -v '^#' | xargs $(pip) uninstall -y || echo "OK, you dont have any unrequired libraries"
 
 install: uninstall-unrequired-libraries
 	$(pip) install -r requirements.txt
@@ -35,6 +37,10 @@ update-requirements:
 test: clean
 	mkdir -p logs
 	$(pytest) -vvvv tests
+
+coverage: clean
+	mkdir -p logs
+	$(pytest)  --cov=app tests/
 
 clean-logs:
 	rm -f logs/*.log
