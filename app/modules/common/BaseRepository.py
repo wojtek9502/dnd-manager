@@ -15,7 +15,7 @@ class BaseRepository(abc.ABC):
         ...
 
     def get_by_id(self, id_: Any):
-        return self.session.query(self.model_class()).get(id_)
+        return self.session.get(self.model_class(), id_)
 
     def commit(self):
         self.session.commit()
