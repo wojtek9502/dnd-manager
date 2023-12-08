@@ -4,7 +4,7 @@ from tests.utils.BaseTest import BaseTest
 
 
 class CharacterServiceTest(BaseTest):
-    def test_a(self):
+    def test_create_character(self):
         # given
         service = CharacterService()
 

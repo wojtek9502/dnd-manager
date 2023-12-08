@@ -25,8 +25,7 @@ class BaseTest(TestCase):
         transaction = connection.begin()
         try:
             for table in reversed(tables):
-                sql = text(f"DELETE FROM  :table")
-                sql = sql.bindparams(table=table)
+                sql = text(f"TRUNCATE TABLE {table} CASCADE")
                 connection.execute(statement=sql)
             transaction.commit()
         except Exception:
