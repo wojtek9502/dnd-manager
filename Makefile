@@ -45,3 +45,7 @@ clean-test-reports:
 	rm -f test_reports/*.xml
 
 clean: clean-logs clean-test-reports
+
+run-pgadmin:
+	docker rm -f pgadmin
+	docker run --name pgadmin --net=host -e "PGADMIN_DEFAULT_EMAIL=admin@admin.com" -e "PGADMIN_DEFAULT_PASSWORD=admin" -d dpage/pgadmin4
