@@ -6,6 +6,7 @@
 - docker-compose >= 2.23.3
 
 ### Install
+1) Run commands:
 ```shell
 python -m pip install virtualenv
 make install-venv
@@ -14,6 +15,7 @@ make install
 make up
 make db-upgrade
 ```
+2) Create .env file in main project dir. See .env.example
 
 ### Run
 1) Start containers  
@@ -22,6 +24,7 @@ make up
 ```
 
 ### Test
+1) 
 ```shell
 make test
 ```
