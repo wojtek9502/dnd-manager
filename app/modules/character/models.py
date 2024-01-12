@@ -7,7 +7,7 @@ MODULE_PREFIX = 'cr_'
 
 
 class CharacterModel(BaseModel, InsertedOnMixin, UpdatedOnMixin):
-    __tablename__ = MODULE_PREFIX + 'user'
+    __tablename__ = MODULE_PREFIX + 'character'
     __uuid_column_name__ = 'id'
 
     id = Column(UUID(as_uuid=True), primary_key=True)
