@@ -14,7 +14,7 @@ class UserRepository(BaseRepository):
     @staticmethod
     def _create_secure_password(password: str):
         pepper = os.environ['USER_AUTH_KEY']
-        salt_token_bytes = int(os.environ['USER_AUTH_TOKEN_BYTES'])
+        salt_token_bytes = int(os.environ['USER_AUTH_SALT_TOKEN_BYTES'])
         iterations = int(os.environ['USER_AUTH_HASH_N_ITERATIONS'])
 
         salt = secrets.token_bytes(salt_token_bytes)

@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 # db
 from app.modules.common.Database import Database
 from app.modules.character.models import CharacterModel
+from app.modules.user.models import UserModel
 
 PROJECT_DIR = Path(__file__).parent
 
