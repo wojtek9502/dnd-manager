@@ -60,6 +60,7 @@ class UserRepository(BaseRepository):
     def find_by_username(self, username: str):
         return self.query().filter(UserModel.username == username).one()
 
+
     def delete_by_username(self, username: str) -> uuid.UUID:
         query = self.query().filter(UserModel.username == username)
         entity = query.one()

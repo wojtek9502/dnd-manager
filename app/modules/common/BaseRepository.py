@@ -21,6 +21,9 @@ class BaseRepository(abc.ABC):
     def get_by_id(self, id_: Any):
         return self.session.get(self.model_class(), id_)
 
+    def find_all(self):
+        return self.session.query(self.model_class()).all()
+
     def commit(self):
         self.session.commit()
 
