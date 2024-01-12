@@ -31,13 +31,13 @@ install-venv:
 update-requirements:
 	$(pip) freeze > requirements.txt
 
-test: clean
+test: up clean
 	mkdir -p logs
 	$(pytest) -vvvv tests
 
-coverage: clean
+coverage: up clean
 	mkdir -p logs
-	$(pytest)  --cov=app tests/
+	$(pytest) --cov-config=./pyproject.toml --cov=app tests/ --cov-report term-missing
 
 clean-logs:
 	rm -f logs/*.log

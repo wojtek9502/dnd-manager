@@ -7,8 +7,12 @@ from app import engine
 
 
 class BaseRepository(abc.ABC):
-    Session = sessionmaker(bind=engine)
-    session = Session()
+    def __init__(self):
+        Session = sessionmaker(bind=engine, expire_on_commit=False)
+        self.session = Session()
+
+    def __del__(self):
+        self.session.close()
 
     @abc.abstractmethod
     def model_class(self):
@@ -22,3 +26,6 @@ class BaseRepository(abc.ABC):
 
     def save(self, entity):
         self.session.add(entity)
+
+    def query(self):
+        return self.session.query(self.model_class())

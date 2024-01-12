@@ -1,8 +1,13 @@
 from sqlalchemy import *
 
-from app.modules.common.Database import Database
+from app.modules.common.BaseModel import BaseModel
+from app.modules.common.mixins import InsertedOnMixin, UpdatedOnMixin
+
+MODULE_PREFIX = 'cr_'
 
 
-class CharacterModel(Database):
-    __tablename__ = "character"
-    id = Column(Integer, primary_key=True)
+class CharacterModel(BaseModel, InsertedOnMixin, UpdatedOnMixin):
+    __tablename__ = MODULE_PREFIX + 'user'
+    __uuid_column_name__ = 'id'
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
