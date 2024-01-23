@@ -1,0 +1,184 @@
+import base64
+import dataclasses
+import logging
+import os
+import uuid
+from typing import Optional, List
+
+import jwt
+import sqlalchemy
+from jwt import DecodeError
+from sqlalchemy.exc import SQLAlchemyError
+
+from app.modules.user.models import UserModel
+from app.modules.common.BaseRepository import NotFoundEntityError
+from app.modules.user.repositories import UserRepository
+from app.modules.user.exceptions import UserLoginPasswordInvalidError
+from app.modules.user.models import UserTokenModel
+from app.modules.user.repositories import UserRepository, UserTokenRepository
+from app.modules.user.types import UserJwtTokenPayload
+
+logger = logging.getLogger()
+
+
+class UserJwtTokenService:
+    @staticmethod
+    def create(username: str) -> Optional[str]:
+        if not username:
+            return None
+
+        payload = dataclasses.asdict(UserJwtTokenPayload(username=username))
+        user_password_hash = UserRepository().find_by_username(username).password_hash
+        key = os.environ['JTW_SECRET_KEY'] + "-" + str(base64.b64encode(user_password_hash))
+        encoded_jwt = jwt.encode(payload=payload, key=key, algorithm="HS256")
+        return encoded_jwt
+
+    @staticmethod
+    def is_valid(jwt_token: str, username: str) -> bool:
+        if not username:
+            return False
+
+        valid_payload = dataclasses.asdict(UserJwtTokenPayload(username=username))
+        user_password_hash = UserRepository().find_by_username(username).password_hash
+        key = os.environ['JTW_SECRET_KEY'] + "-" + str(base64.b64encode(user_password_hash))
+
+        try:
+            payload = jwt.decode(jwt=jwt_token, key=key, algorithms=["HS256"])
+        except DecodeError:
+            return False
+
+        if payload == valid_payload:
+            return True
+        return False
+
+    @staticmethod
+    def decode(jwt_token: str, username: str) -> Optional[UserJwtTokenPayload]:
+        if not username:
+            return None
+
+        valid_payload = dataclasses.asdict(UserJwtTokenPayload(username=username))
+        user_password_hash = UserRepository().find_by_username(username).password_hash
+        key = os.environ['JTW_SECRET_KEY'] + "-" + str(base64.b64encode(user_password_hash))
+        decoded_payload = jwt.decode(jwt=jwt_token, key=key, algorithms=["HS256"])
+
+        if decoded_payload != valid_payload:
+            return None
+
+        token_decode = UserJwtTokenPayload(
+            username=decoded_payload['username']
+        )
+        return token_decode
+
+
+class UserService:
+    @staticmethod
+    def login_user(username: str, password_clear: str) -> str:
+        repo = UserRepository()
+        try:
+            entity = repo.find_by_username(username=username)
+        except (SQLAlchemyError, NotFoundEntityError):
+            repo.session.close()
+            raise UserLoginPasswordInvalidError(f"Invalid username or password")
+
+        # recreate user hash with salt and iterations from user entity
+        password_salt_from_user_input, password_hash_from_user_input = repo.create_password_hash(
+            password=password_clear,
+            salt=entity.salt,
+            iterations=entity.iterations
+        )
+        password_hash_from_db = entity.password_hash
+        if not password_hash_from_db == password_hash_from_user_input:
+            repo.session.close()
+            raise UserLoginPasswordInvalidError()
+
+        user_logged_jwt_token = UserJwtTokenService.create(username=username)
+        return user_logged_jwt_token
+
+    @staticmethod
+    def create_user(username: str, password_clear: str) -> UserModel:
+        repo = UserRepository()
+        entity = repo.create(
+            username=username,
+            password_clear=password_clear,
+        )
+        try:
+            repo.save(entity)
+            repo.commit()
+        except SQLAlchemyError as e:
+            repo.session.rollback()
+            raise e
+
+        return entity
+
+    @staticmethod
+    def update_user(user_id: uuid.UUID, password_clear: str) -> Optional[UserModel]:
+        repo = UserRepository()
+
+        try:
+            entity = repo.find_by_id(user_id)
+        except sqlalchemy.exc.NoResultFound as e:
+            logger.error(str(e))
+            raise NotFoundEntityError(f"Not found user with user_id {user_id}")
+
+        entity = repo.update(
+            entity=entity,
+            username=entity.username,
+            password_clear=password_clear
+        )
+        return entity
+
+    @staticmethod
+    def delete_user(user_id: uuid.UUID) -> uuid.UUID:
+        repo = UserRepository()
+        try:
+            entity_uuid = repo.delete_by_uuid(
+                user_uuid=user_id,
+            )
+        except NotFoundEntityError as e:
+            repo.session.rollback()
+            raise e
+
+        return entity_uuid
+
+    @staticmethod
+    def find_all() -> List[UserModel]:
+        repo = UserRepository()
+        entities = repo.find_all()
+        return entities
+
+    @staticmethod
+    def find_by_username(username: str) -> Optional[UserModel]:
+        repo = UserRepository()
+        try:
+            entity = repo.find_by_username(username=username)
+        except (SQLAlchemyError, NotFoundEntityError):
+            repo.session.close()
+            return None
+        return entity
+
+
+class UserTokenService:
+    def create_token(self, token, user_id: uuid.UUID) -> UserTokenModel:
+        repo = UserTokenRepository()
+
+        repo.delete_expired_tokens()
+        old_token_entity = repo.find_by_token(token=token)
+
+        if not old_token_entity:
+            new_entity = repo.create(
+                token=token,
+                user_id=user_id
+            )
+            repo.save(new_entity)
+            repo.commit()
+            return new_entity
+        return old_token_entity
+
+    def is_token_valid(self, token: str) -> bool:
+        repo = UserTokenRepository()
+        repo.delete_expired_tokens()
+        token_entity = repo.find_by_token(token=token)
+
+        if not token_entity:
+            return False
+        return True

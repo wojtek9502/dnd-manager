@@ -1,41 +1,51 @@
+import datetime
 import hashlib
 import os
 import secrets
 import uuid
+from typing import Optional, List
 
-from app.modules.common.BaseRepository import BaseRepository
-from app.modules.user.models import UserModel
+from sqlalchemy.exc import SQLAlchemyError
+
+from app.modules.common.BaseRepository import BaseRepository, NotFoundEntityError
+from app.modules.user.models import UserModel, UserTokenModel
 
 
 class UserRepository(BaseRepository):
+    AUTH_SALT_TOKEN_BYTES = 128
+    AUTH_HASH_N_ITERATIONS = 100000
+    AUTH_HASH_ALGO = 'PBKDF2'
+
     def model_class(self):
         return UserModel
 
-    @staticmethod
-    def _create_secure_password(password: str):
+    def create_password_hash(self, password: str, salt: Optional[bytes] = None, iterations: Optional[int] = None):
         pepper = os.environ['USER_AUTH_KEY']
-        salt_token_bytes = int(os.environ['USER_AUTH_SALT_TOKEN_BYTES'])
-        iterations = int(os.environ['USER_AUTH_HASH_N_ITERATIONS'])
+        if not iterations:
+            iterations = self.AUTH_HASH_N_ITERATIONS
 
-        salt = secrets.token_bytes(salt_token_bytes)
+        if not salt:
+            salt = secrets.token_bytes(self.AUTH_SALT_TOKEN_BYTES)
+
+        if isinstance(salt, str):
+            salt = salt.encode()
+
         hash_value = hashlib.pbkdf2_hmac(
             'sha256',
             password.encode('utf-8') + pepper.encode('utf-8'),
             salt,
             iterations
         )
-        password_hash = salt + hash_value
-        return password_hash
+        return salt, hash_value
 
     def create(self, username: str, password_clear: str) -> UserModel:
-        password_hash = self._create_secure_password(password=password_clear)
-        salt, hash_key = password_hash[:16], password_hash[16:]
-        hash_algo = "PBKDF2"
-        iterations = int(os.environ['USER_AUTH_HASH_N_ITERATIONS'])
+        salt, password_hash = self.create_password_hash(password=password_clear)
+        hash_algo = self.AUTH_HASH_ALGO
+        iterations = self.AUTH_HASH_N_ITERATIONS
 
         entity = UserModel(
             username=username,
-            password_hash=hash_key,
+            password_hash=password_hash,
             salt=salt,
             hash_algo=hash_algo,
             iterations=iterations
@@ -43,23 +53,41 @@ class UserRepository(BaseRepository):
         return entity
 
     def update(self, entity: UserModel, username: str, password_clear: str) -> UserModel:
-        password_hash = self._create_secure_password(password=password_clear)
-        salt, hash_key = password_hash[:16], password_hash[16:]
-        hash_algo = "PBKDF2"
-        iterations = int(os.environ['USER_AUTH_HASH_N_ITERATIONS'])
+        salt, password_hash = self.create_password_hash(password=password_clear)
+        hash_algo = self.AUTH_HASH_ALGO
+        iterations = self.AUTH_HASH_N_ITERATIONS
 
         entity.username = username
-        entity.password_hash = hash_key
+        entity.password_hash = password_hash
         entity.salt = salt
         entity.hash_algo = hash_algo
         entity.iterations = iterations
 
-        self.commit()
+        try:
+            self.commit()
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            raise e
         return entity
 
-    def find_by_username(self, username: str):
-        return self.query().filter(UserModel.username == username).one()
+    def find_all(self) -> List[UserModel]:
+        return self.query().all()
 
+    def find_by_username(self, username: str) -> UserModel:
+        try:
+            entity = self.query().filter(UserModel.username == username).one()
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            raise e
+        return entity
+
+    def find_by_id(self, user_id: uuid.UUID) -> UserModel:
+        try:
+            entity = self.query().filter(UserModel.id == user_id).one()
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            raise e
+        return entity
 
     def delete_by_username(self, username: str) -> uuid.UUID:
         query = self.query().filter(UserModel.username == username)
@@ -69,3 +97,67 @@ class UserRepository(BaseRepository):
         query.delete()
         self.commit()
         return entity_id
+
+    def delete_by_uuid(self, user_uuid: uuid.UUID) -> uuid.UUID:
+        query = self.query().filter(UserModel.id == user_uuid)
+        entity = query.one_or_none()
+        if not entity:
+            raise NotFoundEntityError(f"Not found user with uuid: {user_uuid}")
+
+        entity_uuid = entity.id
+
+        try:
+            query.delete()
+            self.commit()
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            raise e
+
+        return entity_uuid
+
+
+class UserTokenRepository(BaseRepository):
+    def model_class(self):
+        return UserTokenModel
+
+    def create(self, token: str, user_id: uuid.UUID) -> UserModel:
+        expiration_date = datetime.datetime.now() + + datetime.timedelta(days=1)
+        entity = UserTokenModel(
+            token=token,
+            expiration_date=expiration_date,
+            user_id=user_id
+        )
+        return entity
+
+    def delete_by_token(self, token: str):
+        query = self.query().filter(UserTokenModel.token == token)
+        entity = query.one_or_none()
+        if entity:
+            try:
+                query.delete()
+                self.commit()
+            except SQLAlchemyError as e:
+                self.session.rollback()
+                raise e
+
+    def delete_expired_tokens(self):
+        date_now = datetime.datetime.now()
+        entities = self.query().filter(UserTokenModel.expiration_date < date_now).all()
+        try:
+            for entity in entities:
+                self.session.delete(entity)
+            self.commit()
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            raise e
+
+    def find_by_token(self, token: str) -> Optional[UserTokenModel]:
+        try:
+            entity = self.query().filter(UserTokenModel.token == token).one_or_none()
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            raise e
+
+        if entity:
+            return entity
+        return None

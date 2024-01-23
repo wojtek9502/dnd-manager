@@ -1,5 +1,5 @@
 
-from sqlalchemy import Column, UUID, String, Integer
+from sqlalchemy import Column, UUID, String, Integer, DateTime, ForeignKey, LargeBinary
 
 from app.modules.common.BaseModel import BaseModel
 from app.modules.common.mixins import InsertedOnMixin, UpdatedOnMixin
@@ -13,7 +13,20 @@ class UserModel(BaseModel, InsertedOnMixin, UpdatedOnMixin):
 
     id = Column(UUID(as_uuid=True), primary_key=True)
     username = Column(String(512), unique=True, nullable=False)
-    password_hash = Column(String(512), nullable=False)
-    salt = Column(String(256), nullable=False)
+    password_hash = Column(LargeBinary(8192), unique=False, nullable=False)
+    salt = Column(LargeBinary(256), nullable=False)
     hash_algo = Column(String(10), nullable=False)
     iterations = Column(Integer(), nullable=False)
+
+
+class UserTokenModel(BaseModel, InsertedOnMixin):
+    __tablename__ = MODULE_PREFIX + 'user_token'
+    __uuid_column_name__ = 'id'
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    token = Column(String(512), unique=True, nullable=False)
+    expiration_date = Column(DateTime(timezone=True), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey(UserModel.id), nullable=True)
+
+
+
