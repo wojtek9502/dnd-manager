@@ -27,9 +27,6 @@ class UserRepository(BaseRepository):
         if not salt:
             salt = secrets.token_bytes(self.AUTH_SALT_TOKEN_BYTES)
 
-        if isinstance(salt, str):
-            salt = salt.encode()
-
         hash_value = hashlib.pbkdf2_hmac(
             'sha256',
             password.encode('utf-8') + pepper.encode('utf-8'),
@@ -91,19 +88,25 @@ class UserRepository(BaseRepository):
 
     def delete_by_username(self, username: str) -> uuid.UUID:
         query = self.query().filter(UserModel.username == username)
-        entity = query.one()
-        entity_id = entity.id
+        entity = query.one_or_none()
+        if not entity:
+            raise NotFoundEntityError(f"Not found user with username: {username}")
+        entity_uuid = entity.id
 
-        query.delete()
-        self.commit()
-        return entity_id
+        try:
+            query.delete()
+            self.commit()
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            raise e
+
+        return entity_uuid
 
     def delete_by_uuid(self, user_uuid: uuid.UUID) -> uuid.UUID:
         query = self.query().filter(UserModel.id == user_uuid)
         entity = query.one_or_none()
         if not entity:
             raise NotFoundEntityError(f"Not found user with uuid: {user_uuid}")
-
         entity_uuid = entity.id
 
         try:
@@ -120,25 +123,16 @@ class UserTokenRepository(BaseRepository):
     def model_class(self):
         return UserTokenModel
 
-    def create(self, token: str, user_id: uuid.UUID) -> UserModel:
-        expiration_date = datetime.datetime.now() + + datetime.timedelta(days=1)
+    def create(self, token: str, user_id: uuid.UUID, expiration_date: Optional[datetime.datetime] = None) -> UserModel:
+        if not expiration_date:
+            expiration_date = datetime.datetime.now() + datetime.timedelta(days=1)
+
         entity = UserTokenModel(
             token=token,
             expiration_date=expiration_date,
             user_id=user_id
         )
         return entity
-
-    def delete_by_token(self, token: str):
-        query = self.query().filter(UserTokenModel.token == token)
-        entity = query.one_or_none()
-        if entity:
-            try:
-                query.delete()
-                self.commit()
-            except SQLAlchemyError as e:
-                self.session.rollback()
-                raise e
 
     def delete_expired_tokens(self):
         date_now = datetime.datetime.now()
@@ -152,12 +146,11 @@ class UserTokenRepository(BaseRepository):
             raise e
 
     def find_by_token(self, token: str) -> Optional[UserTokenModel]:
-        try:
-            entity = self.query().filter(UserTokenModel.token == token).one_or_none()
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            raise e
-
+        entity = self.query().filter(UserTokenModel.token == token).one_or_none()
         if entity:
             return entity
         return None
+
+    def find_all(self) -> List[UserTokenModel]:
+        entities = self.query().all()
+        return entities

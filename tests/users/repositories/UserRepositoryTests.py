@@ -147,3 +147,24 @@ class UserRepositoryTest(BaseTest):
         # then
         assert entity_id == deleted_entity_id
         assert len(repo.find_all()) == 0
+
+    def test_delete_user_by_username(self):
+        repo = UserRepository()
+        username = 'admin'
+
+        # when
+        entity = repo.create(
+            username=username,
+            password_clear='admin',
+        )
+        entity_id = entity.id
+        repo.save(entity)
+        repo.commit()
+
+        # when
+        deleted_entity_id = repo.delete_by_username(username=username)
+
+        # then
+        assert entity_id == deleted_entity_id
+        assert len(repo.find_all()) == 0
+

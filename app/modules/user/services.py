@@ -1,5 +1,6 @@
 import base64
 import dataclasses
+import datetime
 import logging
 import os
 import uuid
@@ -158,7 +159,7 @@ class UserService:
 
 
 class UserTokenService:
-    def create_token(self, token, user_id: uuid.UUID) -> UserTokenModel:
+    def create_token(self, token, user_id: uuid.UUID, expiration_date: Optional[datetime.datetime] = None) -> UserTokenModel:
         repo = UserTokenRepository()
 
         repo.delete_expired_tokens()
@@ -167,7 +168,8 @@ class UserTokenService:
         if not old_token_entity:
             new_entity = repo.create(
                 token=token,
-                user_id=user_id
+                user_id=user_id,
+                expiration_date=expiration_date
             )
             repo.save(new_entity)
             repo.commit()
@@ -182,3 +184,12 @@ class UserTokenService:
         if not token_entity:
             return False
         return True
+
+    def delete_expired_tokens(self):
+        repo = UserTokenRepository()
+        repo.delete_expired_tokens()
+
+    def get_all(self) -> List[UserTokenModel]:
+        repo = UserTokenRepository()
+        entities = repo.find_all()
+        return entities
