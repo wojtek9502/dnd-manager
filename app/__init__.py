@@ -7,6 +7,7 @@ from pathlib import Path
 from sqlalchemy import create_engine
 from dotenv import load_dotenv
 from fastapi import FastAPI
+from starlette.responses import RedirectResponse
 
 # db
 from app.modules.common.Database import Database
@@ -40,6 +41,10 @@ app = FastAPI(
     openapi_url=f'/openapi.json',
     dependencies=[],
 )
+
+@app.get("/", include_in_schema=False)
+async def redirect_to_swagger():
+    return RedirectResponse(url='/swagger-ui')
 
 
 from app.modules.api.user.router import router as user_router
