@@ -95,7 +95,8 @@ async def create(request: UserCreateRequestSchema):
             password_clear=request.password
         )
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error(str(e))
+        raise HTTPException(status_code=400, detail="User create error")
 
     return UserResponseSchema(
         id=entity.id,
@@ -112,8 +113,9 @@ async def update(request: UserUpdateRequestSchema):
             user_id=request.user_id,
             password_clear=request.password
         )
-    except NotFoundEntityError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(str(e))
+        raise HTTPException(status_code=400, detail="User update error")
 
     return UserResponseSchema(
         id=entity.id,
@@ -129,7 +131,8 @@ async def delete(user_id: UUID):
         entity_id = service.delete_user(
             user_id=user_id,
         )
-    except NotFoundEntityError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(str(e))
+        raise HTTPException(status_code=400, detail="User delete error")
 
     return UserUuidResponseSchema(id=entity_id)
