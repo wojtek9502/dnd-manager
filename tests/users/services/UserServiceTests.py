@@ -1,7 +1,7 @@
 import uuid
 
 import pytest
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, NoResultFound
 
 from app.modules.common.BaseRepository import NotFoundEntityError
 from app.modules.user.exceptions import UserLoginPasswordInvalidError
@@ -26,6 +26,49 @@ class UserServiceTest(BaseTest):
         # then
         assert user_entity.username == username
         assert user_entity.password_hash != password_clear
+
+    def test_find_all_users(self):
+        # given
+        service = UserService()
+        username = 'admin'
+        password_clear = 'password'
+
+        service.create_user(
+            username=username,
+            password_clear=password_clear
+        )
+
+        # when
+        user_entities = service.find_all()
+
+        assert len(user_entities) == 1
+
+    def test_find_user_by_username(self):
+        # given
+        service = UserService()
+        username = 'admin'
+        password_clear = 'password'
+
+        service.create_user(
+            username=username,
+            password_clear=password_clear
+        )
+
+        # when
+        user_entity = service.find_by_username(username=username)
+
+        assert user_entity.username == username
+
+    def test_find_user_by_username_when_user_not_exists(self):
+        # given
+        service = UserService()
+        username = 'not_exist'
+
+        with pytest.raises(NoResultFound) as exc_info:
+            service.find_by_username(username)
+
+        # then
+        assert isinstance(exc_info.value, NoResultFound)
 
     def test_login_user(self):
         # given
@@ -164,6 +207,20 @@ class UserServiceTest(BaseTest):
         assert len(repo.find_all()) == 0
 
     def test_delete_not_existing_user(self):
+        # given
+        service = UserService()
+        not_existing_user_id = uuid.UUID('0f0d98c1-5576-4756-8058-f3eaf4cf33ca')
+
+        # when
+        with pytest.raises(NotFoundEntityError) as exc_info:
+            service.delete_user(
+                user_id=not_existing_user_id,
+            )
+
+        # then
+        assert isinstance(exc_info.value, NotFoundEntityError)
+
+    def test_delete_not_existing_user_by_username(self):
         # given
         service = UserService()
         not_existing_user_id = uuid.UUID('0f0d98c1-5576-4756-8058-f3eaf4cf33ca')

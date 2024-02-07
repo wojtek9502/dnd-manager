@@ -282,3 +282,4 @@ volumes
 db.sql
 .idea
 recreate_db.sh
+test_reports

@@ -152,9 +152,9 @@ class UserService:
         repo = UserRepository()
         try:
             entity = repo.find_by_username(username=username)
-        except (SQLAlchemyError, NotFoundEntityError):
+        except (SQLAlchemyError, NotFoundEntityError) as e:
             repo.session.close()
-            return None
+            raise e
         return entity
 
 
@@ -177,6 +177,11 @@ class UserTokenService:
         return old_token_entity
 
     def is_token_valid(self, token: str) -> bool:
+        """
+        User token has expired date, first delete expired token. If token still exists in db then is valid
+        :param token:
+        :return bool:
+        """
         repo = UserTokenRepository()
         repo.delete_expired_tokens()
         token_entity = repo.find_by_token(token=token)

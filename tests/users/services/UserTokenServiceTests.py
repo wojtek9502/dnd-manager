@@ -35,6 +35,33 @@ class UserTokenServiceTest(BaseTest):
         assert token_entity.token == token
         assert token_entity.expiration_date > token_entity.inserted_on
 
+    def test_is_token_valid(self):
+        # given
+        service = UserTokenService()
+        user_entity = create_user()
+        token = 'test_token'
+        service.create_token(
+            token=token,
+            user_id=user_entity.id
+        )
+
+        # when
+        is_token_valid = service.is_token_valid(token)
+
+        # then
+        assert is_token_valid
+
+    def test_is_token_valid_if_not_exists(self):
+        # given
+        service = UserTokenService()
+        token = 'test_token_not_exists'
+
+        # when
+        is_token_valid = service.is_token_valid(token)
+
+        # then
+        assert not is_token_valid
+
     def test_delete_user_token_when_no_tokens_expired(self):
         # given
         service = UserTokenService()
@@ -79,4 +106,3 @@ class UserTokenServiceTest(BaseTest):
 
         # then
         assert len(tokens_after_delete) == 0
-
