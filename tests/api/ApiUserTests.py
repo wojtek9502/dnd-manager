@@ -345,8 +345,8 @@ class ApiUsersTest(ApiBaseTest):
         response_json = response.json()
 
         # then
-        assert response.status_code == 404
-        assert 'not found user' in response_json['detail'].lower()
+        assert response.status_code == 400
+        assert 'user update error' in response_json['detail'].lower()
 
     def test_user_delete(self):
         # given - create users
@@ -411,5 +411,5 @@ class ApiUsersTest(ApiBaseTest):
 
         # then
         assert len(user_entities) == 0
-        assert response.status_code == 404
-        assert 'not found user' in response_json['detail'].lower()
+        assert response.status_code == 400
+        assert 'user delete error' in response_json['detail'].lower()
