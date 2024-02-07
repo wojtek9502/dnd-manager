@@ -125,7 +125,8 @@ class UserTokenRepository(BaseRepository):
 
     def create(self, token: str, user_id: uuid.UUID, expiration_date: Optional[datetime.datetime] = None) -> UserModel:
         if not expiration_date:
-            expiration_date = datetime.datetime.now() + datetime.timedelta(days=1)
+            token_expiration_date_hours = int(os.environ['JWT_TOKEN_EXPIRATION_DATE_HOURS'])
+            expiration_date = datetime.datetime.now() + datetime.timedelta(hours=token_expiration_date_hours)
 
         entity = UserTokenModel(
             token=token,
